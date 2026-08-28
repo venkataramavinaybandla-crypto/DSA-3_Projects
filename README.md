@@ -29,7 +29,7 @@
 
 **[Overview](#-overview) • [Architecture](#️-architecture) • [Features](#-features) • [Algorithms](#-algorithm-arsenal) • [Setup](#-getting-started) • [Team](#-team)**
 
-</div>
+
 
 ---
 
@@ -39,16 +39,12 @@ Research literature grows through an **ever-expanding web of citations** — yet
 
 **Citation Analysis System** turns scholarly literature into something a machine can actually reason about: a **directed citation graph**.
 
-<div align="center">
-
 | Real World | → | Graph World |
 |:---:|:---:|:---:|
 | 📄 Research Paper | → | 🔵 Vertex |
 | 🔗 "Paper A cites Paper B" | → | ➡️ Directed Edge |
 | 🌟 Influential Paper | → | 🎯 High-indegree Node |
 | Scholarly Influence Flow | → | 🌊 Max-Flow Path |
-
-</div>
 
 Once literature *is* a graph, everything downstream — traversal, ranking, flow, search — becomes a solved problem in disguise. That's the whole bet this project makes.
 
@@ -108,8 +104,6 @@ flowchart LR
 
 ## 🧬 Algorithm Arsenal
 
-<div align="center">
-
 | Layer | Algorithm | Purpose | Complexity |
 |---|---|---|---|
 | **Graph Core** | Custom Adjacency-List Graph | Store papers & citation edges | O(V + E) space |
@@ -123,15 +117,11 @@ flowchart LR
 | **Lookup** | Custom Hash Table (Open Addressing) | Constant-time paper retrieval | O(1) avg |
 | **Ranking** | Custom Sort Routines | Citation-count based ranking | O(n log n) |
 
-</div>
-
 > **Why it matters:** a citation network is fundamentally a *flow of scholarly influence* — from source papers to the works that build on them. Strongly cited chains are treated as **high-capacity paths**, so max-flow isn't a gimmick here — it's the natural lens for the problem.
 
 ---
 
 ## 🛠️ Tech Stack
-
-<div align="center">
 
 <img src="https://img.shields.io/badge/Language-Java%20(JDK%2017)-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" />
 <img src="https://img.shields.io/badge/IDE-IntelliJ%20%2F%20VS%20Code-000000?style=for-the-badge&logo=intellijidea&logoColor=white" />
@@ -139,8 +129,6 @@ flowchart LR
 <img src="https://img.shields.io/badge/Testing-JUnit-25A162?style=for-the-badge&logo=junit5&logoColor=white" />
 <img src="https://img.shields.io/badge/Storage-CSV%20%2F%20Local%20Files-4CAF50?style=for-the-badge" />
 <img src="https://img.shields.io/badge/UI-Console%20%2F%20JavaFX-9C27B0?style=for-the-badge&logo=java&logoColor=white" />
-
-</div>
 
 ---
 
@@ -236,8 +224,6 @@ This project proves core DSA concepts — **graphs, hashing, and flow** — aren
 
 ## 👥 Team
 
-<div align="center">
-
 | | Name | Roll Number |
 |---|---|---|
 | 🧑‍💻 | **Bandla Vinay** | 2520030437 |
@@ -247,8 +233,6 @@ This project proves core DSA concepts — **graphs, hashing, and flow** — aren
 **Section 07 · Team 20 · DSA-3 (25CS2103E)**
 **Guide:** Dr. S. Madhavi
 
-</div>
-
 ---
 
 ## 📄 License
@@ -256,8 +240,6 @@ This project proves core DSA concepts — **graphs, hashing, and flow** — aren
 Built for academic purposes under **DSA-3 (25CS2103E)**. Licensed under [MIT](LICENSE) — check with your guide before you go full open-source rebel with it.
 
 ---
-
-<div align="center">
 
 ### ⭐ If this repo made your citation anxiety go away, drop a star.
 
