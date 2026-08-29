@@ -24,3 +24,6 @@ target/
 .settings/
 .classpath
 .project
+
+# OS generated files
+.DS_Store

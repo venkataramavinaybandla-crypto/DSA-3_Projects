@@ -4,49 +4,33 @@ package core;
  * Domain model representing a directed citation relationship from a citing paper to a cited paper.
  */
 public class Citation {
-    private String sourcePaperId;
-    private String targetPaperId;
+    private String citingPaperId;
+    private String citedPaperId;
 
     public Citation() {
-        this.sourcePaperId = "";
-        this.targetPaperId = "";
+        this.citingPaperId = "";
+        this.citedPaperId = "";
     }
 
-    public Citation(String sourcePaperId, String targetPaperId) {
-        this.sourcePaperId = sourcePaperId;
-        this.targetPaperId = targetPaperId;
-    }
-
-    public String getSourcePaperId() {
-        return sourcePaperId;
-    }
-
-    public void setSourcePaperId(String sourcePaperId) {
-        this.sourcePaperId = sourcePaperId;
-    }
-
-    public String getTargetPaperId() {
-        return targetPaperId;
-    }
-
-    public void setTargetPaperId(String targetPaperId) {
-        this.targetPaperId = targetPaperId;
+    public Citation(String citingPaperId, String citedPaperId) {
+        this.citingPaperId = citingPaperId;
+        this.citedPaperId = citedPaperId;
     }
 
     public String getCitingPaperId() {
-        return sourcePaperId;
+        return citingPaperId;
     }
 
     public void setCitingPaperId(String citingPaperId) {
-        this.sourcePaperId = citingPaperId;
+        this.citingPaperId = citingPaperId;
     }
 
     public String getCitedPaperId() {
-        return targetPaperId;
+        return citedPaperId;
     }
 
     public void setCitedPaperId(String citedPaperId) {
-        this.targetPaperId = citedPaperId;
+        this.citedPaperId = citedPaperId;
     }
 
     @Override
@@ -58,21 +42,21 @@ public class Citation {
             return false;
         }
         Citation other = (Citation) obj;
-        boolean sourceEqual = (this.sourcePaperId == null) ? (other.sourcePaperId == null) : this.sourcePaperId.equals(other.sourcePaperId);
-        boolean targetEqual = (this.targetPaperId == null) ? (other.targetPaperId == null) : this.targetPaperId.equals(other.targetPaperId);
-        return sourceEqual && targetEqual;
+        boolean citingEqual = (this.citingPaperId == null) ? (other.citingPaperId == null) : this.citingPaperId.equals(other.citingPaperId);
+        boolean citedEqual = (this.citedPaperId == null) ? (other.citedPaperId == null) : this.citedPaperId.equals(other.citedPaperId);
+        return citingEqual && citedEqual;
     }
 
     @Override
     public int hashCode() {
         int hash = 17;
-        hash = 31 * hash + (sourcePaperId != null ? sourcePaperId.hashCode() : 0);
-        hash = 31 * hash + (targetPaperId != null ? targetPaperId.hashCode() : 0);
+        hash = 31 * hash + (citingPaperId != null ? citingPaperId.hashCode() : 0);
+        hash = 31 * hash + (citedPaperId != null ? citedPaperId.hashCode() : 0);
         return hash;
     }
 
     @Override
     public String toString() {
-        return "Citation{sourcePaperId='" + sourcePaperId + "', targetPaperId='" + targetPaperId + "'}";
+        return "Citation{citingPaperId='" + citingPaperId + "', citedPaperId='" + citedPaperId + "'}";
     }
 }
