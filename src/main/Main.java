@@ -122,7 +122,7 @@ public class Main {
 
     private void printBanner() {
         System.out.println("========================================================================");
-        System.out.println("                   CITATION ANALYSIS SYSTEM (CAS)                       ");
+        System.out.println("                          CERBERUS SYSTEM (CS)                       ");
         System.out.println("                 Pure Java Data Structures & Algorithms                 ");
         System.out.println("========================================================================");
         System.out.println("Graph loaded with " + graph.vertexCount() + " sample papers and " + graph.edgeCount() + " citation edges.");
