@@ -205,8 +205,8 @@ graph TD
 
 ```bash
 # Clone the repository
-git clone https://github.com/<your-username>/citation-analysis-system.git
-cd citation-analysis-system
+git clone https://github.com/<your-username>/DSA-3_Projects.git
+cd DSA-3_Projects
 
 # Build the project
 javac -d out src/**/*.java
