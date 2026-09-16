@@ -14,7 +14,7 @@ serializer**, no Maven/Gradle, no frameworks. Frontend is plain HTML/CSS/vanilla
 
 Every module in this project is a *solved* CS problem. The risk isn't "can it be done" — it's implementing it correctly **without the standard library safety net**, and without an AI agent looping/retrying its way through bugs (which is where credits actually get burned). Below: the problem, the canonical solution, the from-scratch gotchas, and the complexity target.
 
-### 1. Graph Representation & Traversal (BFS/DFS)
+### 1. Graph Representation & Reachability Traversal (Multi-Tier & Lineage)
 - **Problem:** Represent a potentially large, sparse citation graph and traverse it to find direct/indirect relationships.
 - **Existing solution:** Adjacency list over adjacency matrix — citation graphs are sparse (most papers don't cite most other papers), so adjacency list keeps it at `O(V+E)` space instead of `O(V²)`.
 - **From-scratch gotcha:** No `ArrayList<Integer>` per node — needs a **custom dynamic array** or **custom linked list** as the edge-list backing structure. Build this ONE reusable dynamic array class first; everything else (hash buckets, adjacency lists, BFS queues) reuses it.

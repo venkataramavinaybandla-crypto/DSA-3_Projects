@@ -133,7 +133,7 @@ public class Main {
         System.out.println("  1. Add a paper");
         System.out.println("  2. Add a citation");
         System.out.println("  3. Search a paper (Exact / Fuzzy)");
-        System.out.println("  4. Traverse citation graph (BFS / DFS)");
+        System.out.println("  4. Explore citation network reachability (Level-wise / Deep Lineage)");
         System.out.println("  5. Analyze citation flow (Edmonds-Karp Max-Flow)");
         System.out.println("  6. View reports (Top papers, Top authors, Trends)");
         System.out.println("  7. Save current data to CSV");
@@ -404,22 +404,23 @@ public class Main {
 
         String traversalType;
         while (true) {
-            traversalType = readLine("Choose traversal method - [B]FS or [D]FS? [B/D]: ");
+            traversalType = readLine("Choose exploration mode - [L]evel-wise Spread or [D]eep Lineage Tracing? [L/D]: ");
             if (traversalType == null) return;
             traversalType = traversalType.trim().toUpperCase();
-            if (traversalType.equals("B") || traversalType.equals("BFS") || traversalType.equals("D") || traversalType.equals("DFS")) {
+            if (traversalType.equals("L") || traversalType.equals("LEVEL") || traversalType.equals("B") || traversalType.equals("BFS")
+                    || traversalType.equals("D") || traversalType.equals("DFS") || traversalType.equals("DEEP")) {
                 break;
             }
-            System.out.println("[Error] Invalid choice. Please enter 'B' for BFS or 'D' for DFS.");
+            System.out.println("[Error] Invalid choice. Please enter 'L' for Level-wise spread or 'D' for Deep lineage.");
         }
 
-        boolean isBfs = traversalType.startsWith("B");
-        DynamicArray<Integer> visitOrder = isBfs
+        boolean isLevelWise = traversalType.startsWith("L") || traversalType.startsWith("B");
+        DynamicArray<Integer> visitOrder = isLevelWise
                 ? GraphTraversal.bfs(graph, startIdx)
                 : GraphTraversal.dfs(graph, startIdx);
 
-        System.out.println("\n" + (isBfs ? "Breadth-First Search (BFS)" : "Depth-First Search (DFS)")
-                + " Traversal Order starting from [" + startId + "]:");
+        System.out.println("\n" + (isLevelWise ? "Level-Wise Reachability Spread" : "Deep Lineage Tracing")
+                + " Order starting from [" + startId + "]:");
         System.out.println("Total reachable papers in component: " + visitOrder.size());
         System.out.println("------------------------------------------------------------------------");
 

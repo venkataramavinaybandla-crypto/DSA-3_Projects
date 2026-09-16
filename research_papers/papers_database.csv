@@ -1,0 +1,79 @@
+# PAPERS
+id,title,author,year,citationCount
+P101,Attention Is All You Need,Vaswani et al.,2017,0
+P102,BERT: Pre-training of Deep Bidirectional Transformers,Devlin et al.,2018,0
+P103,Language Models are Few-Shot Learners (GPT-3),Brown et al.,2020,0
+P104,Deep Residual Learning for Image Recognition,He et al.,2016,0
+P105,Mastering the Game of Go with Deep Neural Networks,Silver et al.,2016,0
+P106,Gradient-Based Learning Applied to Document Recognition,LeCun et al.,1998,0
+P107,ImageNet Classification with Deep Convolutional Neural Networks,Krizhevsky et al.,2012,0
+P108,Generative Adversarial Nets,Goodfellow et al.,2014,0
+P109,Adam: A Method for Stochastic Optimization,Kingma & Ba,2014,0
+P110,Dropout: A Simple Way to Prevent Neural Networks from Overfitting,Srivastava et al.,2014,0
+P111,Semi-Supervised Classification with Graph Convolutional Networks,Kipf & Welling,2017,0
+P112,Graph Attention Networks (GAT),Velickovic et al.,2018,0
+P113,Inductive Representation Learning on Large Graphs (GraphSAGE),Hamilton et al.,2017,0
+P114,DeepWalk: Online Learning of Social Representations,Perozzi et al.,2014,0
+P115,node2vec: Scalable Feature Learning for Networks,Grover & Leskovec,2016,0
+P201,Maximizing the Spread of Influence through a Social Network,Kempe et al.,2003,0
+P202,Collective Dynamics of 'Small-World' Networks,Watts & Strogatz,1998,0
+P203,Emergence of Scaling in Random Networks,Barabasi & Albert,1999,0
+P204,Authoritative Sources in a Hyperlinked Environment (HITS),Kleinberg,1999,0
+P205,The Anatomy of a Large-Scale Hypertextual Web Search Engine,Brin & Page,1998,0
+P206,Threshold Models of Collective Behavior,Granovetter,1978,0
+P207,Cost-Effective Outbreak Detection in Networks,Leskovec et al.,2007,0
+P208,Epidemic Spreading in Scale-Free Networks,Pastor-Satorras & Vespignani,2001,0
+P209,Information Cascades in the Blogosphere,Leskovec et al.,2007,0
+P210,Cascading Behavior in Networks: Algorithmic and Economic Issues,Easley & Kleinberg,2010,0
+P301,Theoretical Improvements in Algorithmic Efficiency for Network Flow Problems,Edmonds & Karp,1972,0
+P302,Maximal Flow Through a Network,Ford & Fulkerson,1956,0
+P303,Algorithm for Solution of a Problem of Maximum Flow with Power Estimation,Dinic,1970,0
+P304,A New Approach to the Maximum-Flow Problem,Goldberg & Tarjan,1988,0
+P305,Depth-First Search and Linear Graph Algorithms,Tarjan,1972,0
+P306,A Note on Two Problems in Connexion with Graphs,Dijkstra,1959,0
+P401,Fast Pattern Matching in Strings,Knuth et al.,1977,0
+P402,Efficient Randomized Pattern-Matching Algorithms,Karp & Rabin,1987,0
+P403,The String-to-String Correction Problem,Wagner & Fischer,1974,0
+P404,A Mathematical Theory of Communication,Shannon,1948,0
+# CITATIONS
+citingPaperId,citedPaperId
+P102,P101
+P103,P101
+P103,P102
+P101,P104
+P102,P104
+P105,P104
+P107,P106
+P104,P107
+P108,P107
+P101,P109
+P102,P109
+P103,P109
+P107,P110
+P104,P110
+P112,P111
+P113,P111
+P111,P114
+P115,P114
+P112,P101
+P111,P202
+P111,P203
+P201,P206
+P201,P202
+P201,P204
+P205,P204
+P207,P201
+P209,P201
+P209,P206
+P210,P201
+P210,P206
+P208,P203
+P301,P302
+P303,P302
+P304,P301
+P304,P303
+P304,P305
+P301,P306
+P402,P401
+P402,P404
+P114,P202

@@ -74,7 +74,7 @@ Most of this happens **manually or across siloed databases** — which slows dow
 flowchart LR
     A[📥 Add Paper] --> G[(Citation Graph<br/>Adjacency List)]
     C[🔗 Add Citation] --> G
-    G --> B{{BFS / DFS<br/>Traversal}}
+    G --> B{{Citation Reachability<br/>& Lineage Analysis}}
     G --> F{{Max-Flow<br/>Dinic's / Edmonds-Karp}}
     G --> S{{Sort by<br/>Citation Count}}
     H[(Hash Table<br/>Title / Author)] --> Q[🔎 Query Paper]
@@ -92,7 +92,7 @@ flowchart LR
 | Capability | Algorithm(s) Used |
 |---|---|
 | 🔗 Add papers & record citation edges | Custom **adjacency-list graph** |
-| 🔍 Traverse citation relationships | **BFS** & **DFS** |
+| 🔍 Traverse citation relationships | **Level-wise Horizon & Deep Lineage Traversal** |
 | ⚡ Search papers by title/author | Custom **hash tables** (open addressing) — O(1) lookup |
 | ✏️ Fuzzy / typo-tolerant search | **Wagner–Fischer edit distance** |
 | 🧵 Exact string/pattern search | **KMP** & **Rabin–Karp** |
@@ -142,7 +142,7 @@ graph TD
 - ➕ **Add papers** and record directed citation relationships
 - 🔎 **Search** via hashing, with edit-distance–based fuzzy matching for typos
 - 📉 **Sort & rank** papers by citation count
-- 🕸️ **Traverse** the citation graph (BFS/DFS) to reveal direct & indirect relationships
+- 🕸️ **Traverse** the citation graph (Level-wise Reach / Deep Lineage) to reveal direct & indirect relationships
 - 🌊 **Analyze citation flow** between authors or research clusters via max-flow
 - 📑 **Generate reports** — citation trends, top authors, most-cited papers
 
@@ -156,7 +156,7 @@ graph TD
 |---|---|
 | **Language** | ![Java](https://img.shields.io/badge/-Java%2026-ED8B00?style=flat-square&logo=openjdk&logoColor=white) hand-built graph, hashing, string & flow algorithms |
 | **Data Structures** | Custom adjacency-list graph · Custom hash tables |
-| **Algorithms** | BFS/DFS · KMP · Rabin–Karp · Wagner–Fischer · Dinic's / Edmonds–Karp |
+| **Algorithms** | Reachability Traversal · KMP · Rabin–Karp · Wagner–Fischer · Dinic's / Edmonds–Karp |
 | **Data Storage** | CSV / local file-based persistence |
 | **Dev Environment** | ![IntelliJ](https://img.shields.io/badge/-IntelliJ%20IDEA-000000?style=flat-square&logo=intellijidea&logoColor=white) ![VSCode](https://img.shields.io/badge/-VS%20Code-007ACC?style=flat-square&logo=visualstudiocode&logoColor=white) |
 | **Version Control** | ![Git](https://img.shields.io/badge/-Git%20%26%20GitHub-181717?style=flat-square&logo=github&logoColor=white) |
@@ -180,7 +180,7 @@ graph TD
 | Operation | Algorithm | Time Complexity | Space |
 |---|---|:---:|:---:|
 | Add paper / citation edge | Adjacency list insert | `O(1)` | `O(V + E)` |
-| Traverse graph | BFS / DFS | `O(V + E)` | `O(V)` |
+| Traverse graph | Reachability Traversal | `O(V + E)` | `O(V)` |
 | Exact title/author search | Custom Hash Table | `O(1)` avg | `O(n)` |
 | Fuzzy search (typo-tolerant) | Wagner–Fischer | `O(m·n)` | `O(m·n)` |
 | Exact string pattern match | KMP | `O(n + m)` | `O(m)` |
@@ -221,7 +221,7 @@ java -cp out Main
 1. Add a paper        →  Register title, author(s), year
 2. Add a citation      →  Link Paper A → Paper B (directed edge)
 3. Search a paper       →  By exact title/author, or fuzzy match
-4. Traverse            →  Run BFS/DFS from any paper
+4. Traverse            →  Explore reachable citation network from any paper
 5. Analyze flow         →  Run max-flow between author clusters
 6. Generate report       →  View top authors, popular papers, trends
 ```
@@ -230,7 +230,7 @@ java -cp out Main
 
 ## 🎯 Expected Outcome
 
-- ✅ A functioning citation graph supporting full **BFS/DFS traversal**
+- ✅ A functioning citation graph supporting full **reachability & lineage traversal**
 - ✅ **Ranked citation counts** and automatic identification of top authors
 - ✅ **Citation-trend reports** generated straight from graph + hash-table data
 - ✅ A demonstrable **end-to-end search-and-analysis flow**, start to finish
@@ -241,7 +241,7 @@ This project proves that core DSA concepts — **graphs, hashing, and flow** —
 
 ## 🗺️ Roadmap
 
-- [x] Core graph engine (adjacency list, BFS/DFS)
+- [x] Core graph engine (adjacency list, reachability traversal)
 - [x] Custom hash table for O(1) lookup
 - [x] KMP / Rabin-Karp exact search
 - [x] Wagner-Fischer fuzzy matching
