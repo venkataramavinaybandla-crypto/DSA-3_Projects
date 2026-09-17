@@ -12,6 +12,7 @@ import report.ReportGenerator;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
@@ -73,7 +74,7 @@ public class Main {
         boolean running = true;
         while (running) {
             printMainMenu();
-            String choice = readLine("Enter your choice (1-9): ");
+            String choice = readLine("Enter your choice (1-10): ");
             if (choice == null) {
                 // End of input stream (e.g. piped input or EOF)
                 System.out.println("\nInput stream closed. Exiting.");
@@ -82,7 +83,7 @@ public class Main {
 
             choice = choice.trim();
             if (choice.isEmpty()) {
-                System.out.println("Please enter a selection from 1 to 9.");
+                System.out.println("Please enter a selection from 1 to 10.");
                 continue;
             }
 
@@ -112,10 +113,13 @@ public class Main {
                     handleLoadCsv();
                     break;
                 case "9":
+                    handleViewPaperContent();
+                    break;
+                case "10":
                     running = handleExit();
                     break;
                 default:
-                    System.out.println("[Error] Invalid choice: '" + choice + "'. Please enter a number between 1 and 9.");
+                    System.out.println("[Error] Invalid choice: '" + choice + "'. Please enter a number between 1 and 10.");
             }
         }
     }
@@ -138,7 +142,8 @@ public class Main {
         System.out.println("  6. View reports (Top papers, Top authors, Trends)");
         System.out.println("  7. Save current data to CSV");
         System.out.println("  8. Load data from CSV");
-        System.out.println("  9. Exit");
+        System.out.println("  9. View paper content");
+        System.out.println(" 10. Exit");
         System.out.println("------------------------------------------------------------------------");
     }
 
@@ -598,7 +603,48 @@ public class Main {
     }
 
     // -------------------------------------------------------------------------
-    // Option 9: Exit
+    // Option 9: View Paper Content
+    // -------------------------------------------------------------------------
+    private void handleViewPaperContent() {
+        System.out.println("\n--- View Paper Content ---");
+        String id = readLine("Enter paper ID to view (e.g. P101, P104, P501): ");
+        if (id == null) return;
+        id = id.trim();
+        if (id.isEmpty()) {
+            System.out.println("[Error] Paper ID cannot be empty.");
+            return;
+        }
+
+        File file = new File("research_papers", id + ".txt");
+        if (!file.exists() || !file.isFile()) {
+            file = new File("research_papers", id.toUpperCase() + ".txt");
+        }
+        if (!file.exists() || !file.isFile()) {
+            file = new File("research_papers", id.toLowerCase() + ".txt");
+        }
+
+        if (!file.exists() || !file.isFile()) {
+            System.out.println("[Error] Content file not found: research_papers/" + id + ".txt");
+            System.out.println("[Notice] Available papers in the dataset must have a corresponding file in research_papers/<id>.txt");
+            return;
+        }
+
+        System.out.println("\n========================================================================");
+        System.out.println("              PAPER CONTENT RETRIEVAL: " + file.getName());
+        System.out.println("========================================================================");
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                System.out.println(line);
+            }
+            System.out.println("========================================================================");
+        } catch (IOException e) {
+            System.out.println("[Error] Failed to read paper content: " + e.getMessage());
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Option 10: Exit
     // -------------------------------------------------------------------------
     private boolean handleExit() {
         if (unsavedChanges) {
