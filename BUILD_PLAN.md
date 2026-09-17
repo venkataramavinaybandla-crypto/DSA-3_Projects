@@ -17,8 +17,8 @@ Every module in this project is a *solved* CS problem. The risk isn't "can it be
 ### 1. Graph Representation & Reachability Traversal (Multi-Tier & Lineage)
 - **Problem:** Represent a potentially large, sparse citation graph and traverse it to find direct/indirect relationships.
 - **Existing solution:** Adjacency list over adjacency matrix — citation graphs are sparse (most papers don't cite most other papers), so adjacency list keeps it at `O(V+E)` space instead of `O(V²)`.
-- **From-scratch gotcha:** No `ArrayList<Integer>` per node — needs a **custom dynamic array** or **custom linked list** as the edge-list backing structure. Build this ONE reusable dynamic array class first; everything else (hash buckets, adjacency lists, BFS queues) reuses it.
-- **BFS needs a queue; DFS needs a stack (or recursion).** Build a custom array-backed queue/stack once, reuse everywhere.
+- **From-scratch gotcha:** No `ArrayList<Integer>` per node — needs a **custom dynamic array** or **custom linked list** as the edge-list backing structure. Build this ONE reusable dynamic array class first; everything else (hash buckets, adjacency lists, level-wise exploration queues) reuses it.
+- **Level-wise reachability needs a queue; deep lineage tracing needs a stack (or recursion).** Build a custom array-backed queue/stack once, reuse everywhere.
 - **Complexity target:** `O(V+E)` traversal, `O(V+E)` space.
 
 ### 2. Custom Hashing (Paper Lookup by Title/Author)
@@ -41,8 +41,8 @@ Every module in this project is a *solved* CS problem. The risk isn't "can it be
 
 ### 5. Max-Flow for Citation-Flow Analysis (Dinic's / Edmonds-Karp)
 - **Problem:** Quantify "flow of influence" between author clusters through the citation graph.
-- **Existing solution:** Edmonds-Karp (BFS-based Ford-Fulkerson, `O(VE²)`) is simpler to implement correctly; Dinic's (`O(V²E)`, faster in practice via blocking flows + level graphs) is more complex but much faster on denser graphs.
-- **Recommendation for THIS project:** **Start with Edmonds-Karp.** It reuses the BFS you already built in Module 1 almost verbatim (BFS to find augmenting paths). Only upgrade to Dinic's if profiling shows it's needed — this is the single biggest opportunity to **save credits**, since Edmonds-Karp is ~70% less code and reuses existing components.
+- **Existing solution:** Edmonds-Karp (level-wise augmenting path Ford-Fulkerson, `O(VE²)`) is simpler to implement correctly; Dinic's (`O(V²E)`, faster in practice via blocking flows + level graphs) is more complex but much faster on denser graphs.
+- **Recommendation for THIS project:** **Start with Edmonds-Karp.** It reuses the level-wise traversal you already built in Module 1 almost verbatim (level-wise search to find augmenting paths). Only upgrade to Dinic's if profiling shows it's needed — this is the single biggest opportunity to **save credits**, since Edmonds-Karp is ~70% less code and reuses existing components.
 - **From-scratch gotcha:** Must model **residual graphs** (forward + backward edges with capacities) — citation edges need reverse edges with 0 initial capacity added at graph-construction time, not bolted on later.
 - **Complexity target:** Edmonds-Karp `O(VE²)` — acceptable for an academic-scale demo dataset (hundreds–low thousands of papers).
 

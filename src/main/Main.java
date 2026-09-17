@@ -43,9 +43,20 @@ public class Main {
     }
 
     /**
-     * Seeds initial academic papers to make the system instantly interactive on launch.
+     * Seeds academic papers to make the system instantly interactive on launch.
+     * Automatically loads the full dataset from citation_data.csv if available.
      */
     private void loadSampleDataIfEmpty() {
+        File defaultFile = new File(DEFAULT_CSV_FILE);
+        if (defaultFile.exists() && defaultFile.isFile()) {
+            try {
+                this.graph = CsvHandler.load(DEFAULT_CSV_FILE);
+                return;
+            } catch (IOException e) {
+                // Fall back to built-in minimal dataset if file read fails
+            }
+        }
+
         Paper p1 = new Paper("P101", "Attention Is All You Need", "Vaswani et al.", 2017);
         Paper p2 = new Paper("P102", "BERT: Pre-training of Deep Bidirectional Transformers", "Devlin et al.", 2018);
         Paper p3 = new Paper("P103", "Language Models are Few-Shot Learners (GPT-3)", "Brown et al.", 2020);
@@ -129,7 +140,7 @@ public class Main {
         System.out.println("                          CERBERUS SYSTEM (CS)                       ");
         System.out.println("                 Pure Java Data Structures & Algorithms                 ");
         System.out.println("========================================================================");
-        System.out.println("Graph loaded with " + graph.vertexCount() + " sample papers and " + graph.edgeCount() + " citation edges.");
+        System.out.println("Graph loaded with " + graph.vertexCount() + " research papers and " + graph.edgeCount() + " citation edges.");
     }
 
     private void printMainMenu() {
@@ -220,7 +231,7 @@ public class Main {
     // Option 2: Add a Citation
     // -------------------------------------------------------------------------
     private void handleAddCitation() {
-        System.out.println("\n--- Add a Citation (Directed Edge: Citing -> Cited) ---");
+        System.out.println("\n--- Add a Citation (Directed Edge: Paper A refers to Paper B) ---");
         if (graph.vertexCount() < 2) {
             System.out.println("[Notice] At least 2 papers must exist to create a citation edge.");
             return;
@@ -229,7 +240,7 @@ public class Main {
         String citingId;
         int fromIdx;
         while (true) {
-            citingId = readLine("Enter CITING paper ID (source of citation): ");
+            citingId = readLine("Enter CITING paper ID (Paper A - refers to): ");
             if (citingId == null) return;
             citingId = citingId.trim();
             fromIdx = graph.findIndexById(citingId);
@@ -244,7 +255,7 @@ public class Main {
         String citedId;
         int toIdx;
         while (true) {
-            citedId = readLine("Enter CITED paper ID (target of citation): ");
+            citedId = readLine("Enter CITED paper ID (Paper B - referred to): ");
             if (citedId == null) return;
             citedId = citedId.trim();
             if (citedId.equals(citingId)) {
@@ -261,14 +272,14 @@ public class Main {
 
         // Check if edge already exists
         if (graph.getNeighbors(fromIdx).contains(toIdx)) {
-            System.out.println("[Notice] Citation from " + citingId + " to " + citedId + " already exists.");
+            System.out.println("[Notice] Citation where Paper [" + citingId + "] refers to Paper [" + citedId + "] already exists.");
             return;
         }
 
         graph.addCitation(citingId, citedId);
         CsvHandler.syncCitationCounts(graph);
         unsavedChanges = true;
-        System.out.println("[Success] Citation recorded: [" + citingId + "] cites [" + citedId + "].");
+        System.out.println("[Success] Citation recorded: Paper [" + citingId + "] refers to Paper [" + citedId + "].");
         System.out.println("Total citations in graph: " + graph.edgeCount());
     }
 
@@ -383,10 +394,10 @@ public class Main {
     }
 
     // -------------------------------------------------------------------------
-    // Option 4: Traverse Citation Graph
+    // Option 4: Explore Citation Network Reachability
     // -------------------------------------------------------------------------
     private void handleTraverseGraph() {
-        System.out.println("\n--- Traverse Citation Graph ---");
+        System.out.println("\n--- Explore Citation Network Reachability ---");
         if (graph.vertexCount() == 0) {
             System.out.println("[Notice] Graph is empty.");
             return;
@@ -395,7 +406,7 @@ public class Main {
         String startId;
         int startIdx;
         while (true) {
-            startId = readLine("Enter start paper ID for traversal: ");
+            startId = readLine("Enter start paper ID for exploration: ");
             if (startId == null) return;
             startId = startId.trim();
             startIdx = graph.findIndexById(startId);
@@ -409,22 +420,22 @@ public class Main {
 
         String traversalType;
         while (true) {
-            traversalType = readLine("Choose exploration mode - [L]evel-wise Spread or [D]eep Lineage Tracing? [L/D]: ");
+            traversalType = readLine("Choose exploration mode - [1] Level-wise or [2] Deep Lineage [1/2]: ");
             if (traversalType == null) return;
             traversalType = traversalType.trim().toUpperCase();
-            if (traversalType.equals("L") || traversalType.equals("LEVEL") || traversalType.equals("B") || traversalType.equals("BFS")
-                    || traversalType.equals("D") || traversalType.equals("DFS") || traversalType.equals("DEEP")) {
+            if (traversalType.equals("1") || traversalType.equals("L") || traversalType.equals("LEVEL") || traversalType.equals("LEVEL-WISE")
+                    || traversalType.equals("2") || traversalType.equals("D") || traversalType.equals("DEEP") || traversalType.equals("DEEP LINEAGE")) {
                 break;
             }
-            System.out.println("[Error] Invalid choice. Please enter 'L' for Level-wise spread or 'D' for Deep lineage.");
+            System.out.println("[Error] Invalid choice. Please enter '1' for Level-wise or '2' for Deep Lineage.");
         }
 
-        boolean isLevelWise = traversalType.startsWith("L") || traversalType.startsWith("B");
+        boolean isLevelWise = traversalType.equals("1") || traversalType.startsWith("L");
         DynamicArray<Integer> visitOrder = isLevelWise
                 ? GraphTraversal.bfs(graph, startIdx)
                 : GraphTraversal.dfs(graph, startIdx);
 
-        System.out.println("\n" + (isLevelWise ? "Level-Wise Reachability Spread" : "Deep Lineage Tracing")
+        System.out.println("\n" + (isLevelWise ? "Level-wise Reachability Exploration" : "Deep Lineage Exploration")
                 + " Order starting from [" + startId + "]:");
         System.out.println("Total reachable papers in component: " + visitOrder.size());
         System.out.println("------------------------------------------------------------------------");
@@ -603,7 +614,7 @@ public class Main {
     }
 
     // -------------------------------------------------------------------------
-    // Option 9: View Paper Content
+    // Option 9: View Paper Content (Real PDF Viewer)
     // -------------------------------------------------------------------------
     private void handleViewPaperContent() {
         System.out.println("\n--- View Paper Content ---");
@@ -615,31 +626,33 @@ public class Main {
             return;
         }
 
-        File file = new File("research_papers", id + ".txt");
+        File file = new File("research_papers", id + ".pdf");
         if (!file.exists() || !file.isFile()) {
-            file = new File("research_papers", id.toUpperCase() + ".txt");
+            file = new File("research_papers", id.toUpperCase() + ".pdf");
         }
         if (!file.exists() || !file.isFile()) {
-            file = new File("research_papers", id.toLowerCase() + ".txt");
+            file = new File("research_papers", id.toLowerCase() + ".pdf");
         }
 
         if (!file.exists() || !file.isFile()) {
-            System.out.println("[Error] Content file not found: research_papers/" + id + ".txt");
-            System.out.println("[Notice] Available papers in the dataset must have a corresponding file in research_papers/<id>.txt");
+            System.out.println("[Error] PDF file not found: research_papers/" + id + ".pdf");
+            System.out.println("[Notice] Available papers in the dataset have corresponding PDF files in research_papers/<id>.pdf");
             return;
         }
 
-        System.out.println("\n========================================================================");
-        System.out.println("              PAPER CONTENT RETRIEVAL: " + file.getName());
-        System.out.println("========================================================================");
-        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                System.out.println(line);
+        System.out.println("[+] Found research paper PDF: " + file.getAbsolutePath());
+        try {
+            if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.OPEN)) {
+                System.out.println("[+] Launching system PDF viewer for: " + file.getName() + "...");
+                java.awt.Desktop.getDesktop().open(file);
+                System.out.println("[Success] Paper PDF opened in default viewer.");
+            } else {
+                System.out.println("[Notice] Desktop integration is not supported in this environment (headless mode).");
+                System.out.println("Please open the PDF manually at: " + file.getAbsolutePath());
             }
-            System.out.println("========================================================================");
-        } catch (IOException e) {
-            System.out.println("[Error] Failed to read paper content: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("[Notice] Unable to launch default viewer: " + e.getMessage());
+            System.out.println("Please open the PDF manually at: " + file.getAbsolutePath());
         }
     }
 
