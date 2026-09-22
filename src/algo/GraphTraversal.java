@@ -5,11 +5,50 @@ import core.ArrayStack;
 import core.DynamicArray;
 import core.Graph;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Graph traversal algorithms including Breadth-First Search (BFS) and Depth-First Search (DFS).
  * Uses ArrayQueue and ArrayStack without standard collections.
  */
 public class GraphTraversal {
+
+    /** Citation graph instance (optional, for instance-based traversal calls). */
+    private Graph graph;
+
+    /** Default constructor. */
+    public GraphTraversal() {}
+
+    /**
+     * Constructs a GraphTraversal bound to a specific citation graph.
+     *
+     * @param graph the citation graph
+     */
+    public GraphTraversal(Graph graph) {
+        this.graph = graph;
+    }
+
+    /**
+     * Sets the citation graph for this traverser.
+     *
+     * @param graph the citation graph
+     */
+    public void setGraph(Graph graph) {
+        this.graph = graph;
+    }
+
+    /**
+     * Gets the citation graph associated with this traverser.
+     *
+     * @return the citation graph, or null if unset
+     */
+    public Graph getGraph() {
+        return this.graph;
+    }
+
+    /** Last computed chain length (hop count), -1 if unreachable. */
+    private int lastChainLength = -1;
 
     /**
      * Traverses the graph in Breadth-First Search (BFS) order starting from startIndex.
@@ -94,4 +133,301 @@ public class GraphTraversal {
 
         return visitOrder;
     }
+
+    /**
+     * Narrates a citation chain between two papers. Reuses existing bfs() to
+     * first verify reachability, then reconstructs one shortest path using a
+     * parent-tracking BFS and formats the chain as:
+     * "Paper &lt;A&gt; refers to Paper &lt;B&gt; &amp; Paper &lt;B&gt; refers to Paper &lt;C&gt;,
+     * so Paper &lt;A&gt; refers to Paper &lt;C&gt;."
+     *
+     * @param graph   the citation graph
+     * @param startId the ID of the starting paper
+     * @param endId   the ID of the ending paper
+     * @return the narrated chain string, or "No path found." if unreachable
+     */
+    public String narrateChain(Graph graph, String startId, String endId) {
+        int startIdx = graph.findIndexById(startId);
+        int endIdx = graph.findIndexById(endId);
+
+        if (startIdx == -1 || endIdx == -1) {
+            lastChainLength = -1;
+            return "No path found.";
+        }
+
+        if (startIdx == endIdx) {
+            lastChainLength = 0;
+            return "Paper " + startId + " is the same as Paper " + endId + ".";
+        }
+
+        // Use existing bfs() to verify that endIdx is reachable from startIdx
+        DynamicArray<Integer> bfsOrder = bfs(graph, startIdx);
+        boolean reachable = false;
+        for (int i = 0; i < bfsOrder.size(); i++) {
+            if (bfsOrder.get(i) == endIdx) {
+                reachable = true;
+                break;
+            }
+        }
+
+        if (!reachable) {
+            lastChainLength = -1;
+            return "No path found.";
+        }
+
+        // Reconstruct one shortest path via parent-tracking BFS
+        int n = graph.vertexCount();
+        int[] parent = new int[n];
+        boolean[] visited = new boolean[n];
+        for (int i = 0; i < n; i++) {
+            parent[i] = -1;
+        }
+
+        ArrayQueue<Integer> queue = new ArrayQueue<>();
+        visited[startIdx] = true;
+        queue.enqueue(startIdx);
+
+        while (!queue.isEmpty()) {
+            int current = queue.dequeue();
+            if (current == endIdx) {
+                break;
+            }
+            DynamicArray<Integer> neighbors = graph.getNeighbors(current);
+            for (int i = 0; i < neighbors.size(); i++) {
+                int neighbor = neighbors.get(i);
+                if (!visited[neighbor]) {
+                    visited[neighbor] = true;
+                    parent[neighbor] = current;
+                    queue.enqueue(neighbor);
+                }
+            }
+        }
+
+        // Backtrack to build the path from start to end
+        DynamicArray<String> pathIds = new DynamicArray<>();
+        int cur = endIdx;
+        while (cur != -1) {
+            pathIds.add(graph.getPaper(cur).getId());
+            cur = parent[cur];
+        }
+
+        // Reverse the path (it's currently end -> start)
+        DynamicArray<String> reversedPath = new DynamicArray<>();
+        for (int i = pathIds.size() - 1; i >= 0; i--) {
+            reversedPath.add(pathIds.get(i));
+        }
+
+        lastChainLength = reversedPath.size() - 1;
+
+        // Build the narrated chain
+        // For each consecutive pair: "Paper <A> refers to Paper <B>"
+        // Join pairs with " & "
+        // Append ", so Paper <first> refers to Paper <last>."
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < reversedPath.size() - 1; i++) {
+            if (i > 0) {
+                sb.append(" & ");
+            }
+            sb.append("Paper ").append(reversedPath.get(i))
+              .append(" refers to Paper ").append(reversedPath.get(i + 1));
+        }
+
+        if (reversedPath.size() > 2) {
+            sb.append(", so Paper ").append(reversedPath.get(0))
+              .append(" refers to Paper ").append(reversedPath.get(reversedPath.size() - 1));
+        }
+        sb.append(".");
+
+        return sb.toString();
+    }
+
+    /**
+     * Narrates a citation chain using the traverser's bound graph.
+     *
+     * @param startId the ID of the starting paper
+     * @param endId   the ID of the ending paper
+     * @return the narrated chain string
+     */
+    public String narrateChain(String startId, String endId) {
+        if (this.graph == null) {
+            throw new IllegalStateException("Graph has not been set for GraphTraversal");
+        }
+        return narrateChain(this.graph, startId, endId);
+    }
+
+    /**
+     * Returns the hop count of the last chain computed by {@link #narrateChain},
+     * or -1 if no path was found or narrateChain has not been called.
+     *
+     * @return the hop count, or -1 if unreachable
+     */
+    public int getChainLength() {
+        return lastChainLength;
+    }
+
+    /** Hard cap on the number of paths enumerated by {@link #findAllPaths}. */
+    private static final int MAX_PATHS = 10_000;
+
+    /**
+     * Finds all simple (loop-free) directed paths from {@code startId} to
+     * {@code endId} using recursive DFS with backtracking.
+     * <p>
+     * Enumeration is hard-capped at {@value #MAX_PATHS} paths. If the cap is
+     * reached a warning is printed to {@code System.err}.
+     *
+     * @param graph   the citation graph
+     * @param startId the source paper ID
+     * @param endId   the target paper ID
+     * @return a DynamicArray of paths, where each path is a DynamicArray of paper IDs
+     */
+    public DynamicArray<DynamicArray<String>> findAllPaths(Graph graph, String startId, String endId) {
+        DynamicArray<DynamicArray<String>> allPaths = new DynamicArray<>();
+
+        int startIdx = graph.findIndexById(startId);
+        int endIdx = graph.findIndexById(endId);
+
+        if (startIdx == -1 || endIdx == -1) {
+            return allPaths;
+        }
+
+        boolean[] visited = new boolean[graph.vertexCount()];
+        DynamicArray<Integer> currentPath = new DynamicArray<>();
+
+        dfsEnumerate(graph, startIdx, endIdx, visited, currentPath, allPaths);
+        return allPaths;
+    }
+
+    /**
+     * Finds all simple (loop-free) directed paths from {@code startId} to
+     * {@code endId} using the bound citation graph, returning a standard {@link List} of paths.
+     *
+     * @param startId the source paper ID
+     * @param endId   the target paper ID
+     * @return a List of paths, where each path is a List of paper IDs
+     */
+    public List<List<String>> findAllPaths(String startId, String endId) {
+        if (this.graph == null) {
+            throw new IllegalStateException("Graph has not been set for GraphTraversal");
+        }
+        return findAllPathsList(this.graph, startId, endId);
+    }
+
+    /**
+     * Finds all simple (loop-free) directed paths from {@code startId} to
+     * {@code endId} returning a standard {@link List} of paths.
+     *
+     * @param graph   the citation graph
+     * @param startId the source paper ID
+     * @param endId   the target paper ID
+     * @return a List of paths, where each path is a List of paper IDs
+     */
+    public List<List<String>> findAllPathsList(Graph graph, String startId, String endId) {
+        DynamicArray<DynamicArray<String>> dArrayPaths = findAllPaths(graph, startId, endId);
+        List<List<String>> listPaths = new ArrayList<>();
+        for (int i = 0; i < dArrayPaths.size(); i++) {
+            DynamicArray<String> dPath = dArrayPaths.get(i);
+            List<String> lPath = new ArrayList<>();
+            for (int j = 0; j < dPath.size(); j++) {
+                lPath.add(dPath.get(j));
+            }
+            listPaths.add(lPath);
+        }
+        return listPaths;
+    }
+
+    /**
+     * Recursive DFS helper that enumerates all simple paths.
+     * Stops adding new paths once {@link #MAX_PATHS} is reached.
+     */
+    private void dfsEnumerate(Graph graph, int current, int endIdx,
+                              boolean[] visited, DynamicArray<Integer> currentPath,
+                              DynamicArray<DynamicArray<String>> allPaths) {
+
+        if (allPaths.size() >= MAX_PATHS) {
+            return;
+        }
+
+        visited[current] = true;
+        currentPath.add(current);
+
+        if (current == endIdx) {
+            // Snapshot current path as paper IDs
+            DynamicArray<String> pathCopy = new DynamicArray<>();
+            for (int i = 0; i < currentPath.size(); i++) {
+                pathCopy.add(graph.getPaper(currentPath.get(i)).getId());
+            }
+            allPaths.add(pathCopy);
+
+            if (allPaths.size() >= MAX_PATHS) {
+                System.out.println("[Warning] Path enumeration hard-cap of " + MAX_PATHS
+                        + " reached. Results are truncated.");
+                System.err.println("[Warning] Path enumeration hard-cap of " + MAX_PATHS
+                        + " reached. Results are truncated.");
+            }
+        } else {
+            DynamicArray<Integer> neighbors = graph.getNeighbors(current);
+            for (int i = 0; i < neighbors.size(); i++) {
+                int neighbor = neighbors.get(i);
+                if (!visited[neighbor]) {
+                    dfsEnumerate(graph, neighbor, endIdx, visited, currentPath, allPaths);
+                    if (allPaths.size() >= MAX_PATHS) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Backtrack
+        visited[current] = false;
+        currentPath.remove(currentPath.size() - 1);
+    }
+
+    /**
+     * Checks whether a given path is a Hamiltonian path, i.e. it visits every
+     * node in the graph exactly once.
+     *
+     * @param path           a single path represented as a DynamicArray of paper IDs
+     * @param totalNodeCount the total number of nodes in the graph
+     * @return {@code true} if the path visits exactly {@code totalNodeCount}
+     *         distinct nodes (i.e. every node once)
+     */
+    public static boolean isHamiltonianPath(DynamicArray<String> path, int totalNodeCount) {
+        if (path == null || totalNodeCount <= 0 || path.size() != totalNodeCount) {
+            return false;
+        }
+        // Verify all elements are distinct
+        for (int i = 0; i < path.size(); i++) {
+            for (int j = i + 1; j < path.size(); j++) {
+                if (path.get(i).equals(path.get(j))) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Checks whether a given path is a Hamiltonian path, i.e. it visits every
+     * node in the graph exactly once.
+     *
+     * @param path           a single path represented as a List of paper IDs
+     * @param totalNodeCount the total number of nodes in the graph
+     * @return {@code true} if the path visits exactly {@code totalNodeCount}
+     *         distinct nodes (i.e. every node once)
+     */
+    public static boolean isHamiltonianPath(List<String> path, int totalNodeCount) {
+        if (path == null || totalNodeCount <= 0 || path.size() != totalNodeCount) {
+            return false;
+        }
+        // Verify all elements are distinct
+        for (int i = 0; i < path.size(); i++) {
+            for (int j = i + 1; j < path.size(); j++) {
+                if (path.get(i).equals(path.get(j))) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 }
+

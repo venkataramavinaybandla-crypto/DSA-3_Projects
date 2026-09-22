@@ -21,6 +21,10 @@ public class GraphTest {
         testBFS();
         testDFS();
         testEdgeCases();
+        testNarrateChain2Hop();
+        testNarrateChain3Hop();
+        testFindAllPathsAndHamiltonian();
+        testFixtureAB_AC_BD();
 
         System.out.println("\n==========================================");
         System.out.println("GRAPH TEST RESULTS: " + passedTests + " / " + totalTests + " PASSED");
@@ -239,4 +243,151 @@ public class GraphTest {
         assertEquals("Cyclic DFS [1]", 1, (int) cyclicDfs.get(1));
         assertEquals("Cyclic DFS [2]", 2, (int) cyclicDfs.get(2));
     }
+
+    // --------------------------------------------------------- narrateChain 2-hop
+    private static void testNarrateChain2Hop() {
+        System.out.println("\n--- narrateChain 2-Hop Test ---");
+        // Chain: A -> B -> C  (2 hops)
+        Graph graph = new Graph();
+        graph.addVertex(new Paper("A", "Paper A", "AuthA", 2020));
+        graph.addVertex(new Paper("B", "Paper B", "AuthB", 2021));
+        graph.addVertex(new Paper("C", "Paper C", "AuthC", 2022));
+
+        graph.addCitation("A", "B");
+        graph.addCitation("B", "C");
+
+        GraphTraversal traverser = new GraphTraversal();
+        String result = traverser.narrateChain(graph, "A", "C");
+
+        String expected = "Paper A refers to Paper B & Paper B refers to Paper C, so Paper A refers to Paper C.";
+        assertEquals("narrateChain 2-hop output", expected, result);
+        assertEquals("getChainLength 2-hop returns 2", 2, traverser.getChainLength());
+    }
+
+    // --------------------------------------------------------- narrateChain 3-hop
+    private static void testNarrateChain3Hop() {
+        System.out.println("\n--- narrateChain 3-Hop Test ---");
+        // Chain: X -> Y -> Z -> W  (3 hops)
+        Graph graph = new Graph();
+        graph.addVertex(new Paper("X", "Paper X", "AuthX", 2019));
+        graph.addVertex(new Paper("Y", "Paper Y", "AuthY", 2020));
+        graph.addVertex(new Paper("Z", "Paper Z", "AuthZ", 2021));
+        graph.addVertex(new Paper("W", "Paper W", "AuthW", 2022));
+
+        graph.addCitation("X", "Y");
+        graph.addCitation("Y", "Z");
+        graph.addCitation("Z", "W");
+
+        GraphTraversal traverser = new GraphTraversal();
+        String result = traverser.narrateChain(graph, "X", "W");
+
+        String expected = "Paper X refers to Paper Y & Paper Y refers to Paper Z & Paper Z refers to Paper W, so Paper X refers to Paper W.";
+        assertEquals("narrateChain 3-hop output", expected, result);
+        assertEquals("getChainLength 3-hop returns 3", 3, traverser.getChainLength());
+    }
+
+    // ------------------------------------------------- findAllPaths & Hamiltonian
+    private static void testFindAllPathsAndHamiltonian() {
+        System.out.println("\n--- findAllPaths & Hamiltonian Path Tests ---");
+
+        // Diamond graph:
+        //      N1
+        //    /    \
+        //  N0      N3
+        //    \    /
+        //      N2
+        Graph diamond = new Graph();
+        diamond.addVertex(new Paper("N0", "Paper 0", "A0", 2020));
+        diamond.addVertex(new Paper("N1", "Paper 1", "A1", 2021));
+        diamond.addVertex(new Paper("N2", "Paper 2", "A2", 2022));
+        diamond.addVertex(new Paper("N3", "Paper 3", "A3", 2023));
+
+        diamond.addCitation("N0", "N1");
+        diamond.addCitation("N0", "N2");
+        diamond.addCitation("N1", "N3");
+        diamond.addCitation("N2", "N3");
+
+        GraphTraversal traverser = new GraphTraversal(diamond);
+
+        // Test DynamicArray version
+        DynamicArray<DynamicArray<String>> daPaths = traverser.findAllPaths(diamond, "N0", "N3");
+        assertEquals("Diamond graph has 2 paths (DynamicArray)", 2, daPaths.size());
+
+        // Test List<List<String>> version
+        java.util.List<java.util.List<String>> listPaths = traverser.findAllPaths("N0", "N3");
+        assertEquals("Diamond graph has 2 paths (List)", 2, listPaths.size());
+
+        // Neither path in diamond visits all 4 nodes (each visits 3 nodes: N0->N1->N3 or N0->N2->N3)
+        for (int i = 0; i < daPaths.size(); i++) {
+            assertTrue("Diamond path " + i + " is not Hamiltonian (3 of 4 nodes)",
+                    !GraphTraversal.isHamiltonianPath(daPaths.get(i), 4));
+            assertTrue("Diamond path " + i + " is not Hamiltonian (List overload)",
+                    !GraphTraversal.isHamiltonianPath(listPaths.get(i), 4));
+        }
+
+        // Linear graph visiting all 4 nodes: N0 -> N1 -> N2 -> N3
+        Graph linear = new Graph();
+        linear.addVertex(new Paper("L0", "P0", "A0", 2020));
+        linear.addVertex(new Paper("L1", "P1", "A1", 2021));
+        linear.addVertex(new Paper("L2", "P2", "A2", 2022));
+        linear.addVertex(new Paper("L3", "P3", "A3", 2023));
+
+        linear.addCitation("L0", "L1");
+        linear.addCitation("L1", "L2");
+        linear.addCitation("L2", "L3");
+
+        GraphTraversal linearTraverser = new GraphTraversal(linear);
+        DynamicArray<DynamicArray<String>> linPaths = linearTraverser.findAllPaths(linear, "L0", "L3");
+        assertEquals("Linear graph has 1 path", 1, linPaths.size());
+        assertTrue("Linear path visiting all nodes is Hamiltonian (DynamicArray)",
+                GraphTraversal.isHamiltonianPath(linPaths.get(0), 4));
+
+        java.util.List<java.util.List<String>> linListPaths = linearTraverser.findAllPaths("L0", "L3");
+        assertTrue("Linear path visiting all nodes is Hamiltonian (List)",
+                GraphTraversal.isHamiltonianPath(linListPaths.get(0), 4));
+
+        // Edge case: path with duplicate nodes is not Hamiltonian
+        DynamicArray<String> dupPath = new DynamicArray<>();
+        dupPath.add("L0");
+        dupPath.add("L1");
+        dupPath.add("L0");
+        dupPath.add("L3");
+        assertTrue("Path with duplicate node is not Hamiltonian",
+                !GraphTraversal.isHamiltonianPath(dupPath, 4));
+
+        // Edge case: null or empty path
+        assertTrue("Null path is not Hamiltonian", !GraphTraversal.isHamiltonianPath((DynamicArray<String>) null, 4));
+        assertTrue("Zero nodes count is not Hamiltonian", !GraphTraversal.isHamiltonianPath(dupPath, 0));
+    }
+
+    // ------------------------------------------------- Fixture A->B, A->C, B->D
+    private static void testFixtureAB_AC_BD() {
+        System.out.println("\n--- Fixture A->B, A->C, B->D ---");
+        Graph graph = new Graph();
+        graph.addVertex(new Paper("A", "Paper A", "Author A", 2020));
+        graph.addVertex(new Paper("B", "Paper B", "Author B", 2021));
+        graph.addVertex(new Paper("C", "Paper C", "Author C", 2022));
+        graph.addVertex(new Paper("D", "Paper D", "Author D", 2023));
+
+        graph.addCitation("A", "B");
+        graph.addCitation("A", "C");
+        graph.addCitation("B", "D");
+
+        GraphTraversal traverser = new GraphTraversal(graph);
+
+        String narration = traverser.narrateChain(graph, "A", "D");
+        System.out.println("narrateChain(A, D): " + narration);
+
+        int chainLength = traverser.getChainLength();
+        System.out.println("getChainLength: " + chainLength);
+
+        DynamicArray<DynamicArray<String>> paths = traverser.findAllPaths(graph, "A", "D");
+        System.out.println("findAllPaths(A, D): " + paths);
+
+        assertEquals("narrateChain matches expected",
+                "Paper A refers to Paper B & Paper B refers to Paper D, so Paper A refers to Paper D.", narration);
+        assertEquals("getChainLength matches 2", 2, chainLength);
+        assertEquals("findAllPaths count is 1", 1, paths.size());
+    }
 }
+

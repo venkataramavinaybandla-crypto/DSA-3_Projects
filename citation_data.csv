@@ -73,7 +73,7 @@ P535,Segment Anything,Alexander Kirillov et al.,2023,0
 P536,FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness,Tri Dao et al.,2022,0
 P537,Direct Preference Optimization: Your Language Model is Secretly a Reward Model,Rafael Rafailov et al.,2023,0
 P538,Deep Double Descent: Where Bigger Models and More Data Hurt,Preetum Nakkiran et al.,2019,0
-P539,Language Models are Few-Shot Learners,Tom B. Brown et al.,2020,0
+P539,Language Models are Unsupervised Multitask Learners,Alec Radford et al.,2019,0
 P540,Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks,Patrick Lewis et al.,2020,0
 # CITATIONS
 citingPaperId,citedPaperId

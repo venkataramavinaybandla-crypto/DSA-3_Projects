@@ -12,9 +12,11 @@ import report.ReportGenerator;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Main interactive console application for the Citation Analysis System.
@@ -85,7 +87,7 @@ public class Main {
         boolean running = true;
         while (running) {
             printMainMenu();
-            String choice = readLine("Enter your choice (1-10): ");
+            String choice = readLine("Enter your choice (1-12): ");
             if (choice == null) {
                 // End of input stream (e.g. piped input or EOF)
                 System.out.println("\nInput stream closed. Exiting.");
@@ -94,7 +96,7 @@ public class Main {
 
             choice = choice.trim();
             if (choice.isEmpty()) {
-                System.out.println("Please enter a selection from 1 to 10.");
+                System.out.println("Please enter a selection from 1 to 12.");
                 continue;
             }
 
@@ -127,10 +129,20 @@ public class Main {
                     handleViewPaperContent();
                     break;
                 case "10":
+                    handleNarrateCitationChain();
+                    break;
+                case "11":
+                    try {
+                        handleDisplayAllPaths();
+                    } catch (Exception e) {
+                        System.out.println("[Error] Failed to display paths: " + e.getMessage());
+                    }
+                    break;
+                case "12":
                     running = handleExit();
                     break;
                 default:
-                    System.out.println("[Error] Invalid choice: '" + choice + "'. Please enter a number between 1 and 10.");
+                    System.out.println("[Error] Invalid choice: '" + choice + "'. Please enter a number between 1 and 12.");
             }
         }
     }
@@ -154,7 +166,9 @@ public class Main {
         System.out.println("  7. Save current data to CSV");
         System.out.println("  8. Load data from CSV");
         System.out.println("  9. View paper content");
-        System.out.println(" 10. Exit");
+        System.out.println(" 10. Narrate citation chain (Shortest Path)");
+        System.out.println(" 11. Display All Paths (Hamiltonian Check)");
+        System.out.println(" 12. Exit");
         System.out.println("------------------------------------------------------------------------");
     }
 
@@ -445,6 +459,14 @@ public class Main {
             System.out.printf("%2d. [%s] \"%s\" by %s (%d)%n",
                     (i + 1), p.getId(), p.getTitle(), p.getAuthor(), p.getYear());
         }
+
+        // Narrate the citation chain from the start paper to the last paper in the traversal
+        if (visitOrder.size() > 1) {
+            String lastPaperId = graph.getPaper(visitOrder.get(visitOrder.size() - 1)).getId();
+            GraphTraversal traverser = new GraphTraversal();
+            String chain = traverser.narrateChain(graph, startId, lastPaperId);
+            System.out.println("Narrated chain to [" + lastPaperId + "]: " + chain);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -502,6 +524,10 @@ public class Main {
         System.out.println("Source : [" + sourcePaper.getId() + "] " + sourcePaper.getTitle());
         System.out.println("Sink   : [" + sinkPaper.getId() + "] " + sinkPaper.getTitle());
         System.out.println("Max-Flow Value : " + maxFlow);
+        if (maxFlow > 0) {
+            GraphTraversal traverser = new GraphTraversal(graph);
+            System.out.println(traverser.narrateChain(sourceId, sinkId));
+        }
         System.out.println("Interpretation : " + explanation);
         System.out.println("==================================================================");
     }
@@ -637,6 +663,9 @@ public class Main {
         if (!file.exists() || !file.isFile()) {
             System.out.println("[Error] PDF file not found: research_papers/" + id + ".pdf");
             System.out.println("[Notice] Available papers in the dataset have corresponding PDF files in research_papers/<id>.pdf");
+            // No PDF for this paper: fall back to printing its text content in the terminal.
+            printPaperAbstractIfAvailable(id);
+            offerFullTextView(id);
             return;
         }
 
@@ -654,10 +683,264 @@ public class Main {
             System.out.println("[Notice] Unable to launch default viewer: " + e.getMessage());
             System.out.println("Please open the PDF manually at: " + file.getAbsolutePath());
         }
+        // A PDF exists and was handled above: the paper is read in the PDF viewer, so no
+        // paper content (abstract or full text) is printed to the terminal for this paper.
+    }
+
+    /**
+     * Option 9 text fallback: prints the paper's title, authors, year and abstract from the
+     * companion text file {@code research_papers/<id>.txt}.
+     *
+     * <p>Only called when no PDF exists for the paper, so a paper whose PDF was never
+     * downloaded still shows its content in the terminal. The Layer A files already store
+     * {@code Title: / Authors: / Year: / Abstract:} in the project's standard order, so the
+     * file is echoed verbatim. When the file is missing (or empty) nothing at all is printed.
+     *
+     * @param id the paper ID entered by the user
+     */
+    private void printPaperAbstractIfAvailable(String id) {
+        File abstractFile = findResearchPaperFile(id, ".txt");
+        if (abstractFile == null) {
+            return;
+        }
+
+        String content;
+        try {
+            content = readFileUtf8(abstractFile);
+        } catch (IOException e) {
+            System.out.println("[Notice] Abstract file found but could not be read: " + e.getMessage());
+            return;
+        }
+
+        if (content.trim().isEmpty()) {
+            return;
+        }
+
+        System.out.println("----------------------- PAPER CONTENT (TEXT FALLBACK) -----------------------");
+        System.out.println(content);
+        System.out.println("------------------------------------------------------------------------");
+    }
+
+    /**
+     * Resolves {@code research_papers/<id><suffix>}, trying the ID exactly as entered, then
+     * uppercased, then lowercased. Returns {@code null} when no such file exists.
+     */
+    private File findResearchPaperFile(String id, String suffix) {
+        String[] candidates = { id, id.toUpperCase(), id.toLowerCase() };
+        for (String candidate : candidates) {
+            File candidateFile = new File("research_papers", candidate + suffix);
+            if (candidateFile.exists() && candidateFile.isFile()) {
+                return candidateFile;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Option 9 helper: offers the plain-text companion file for a paper, if one exists.
+     *
+     * <p>Looks for {@code research_papers/<id>_fulltext.txt} (trying the exact ID, then its
+     * uppercase and lowercase forms). When the file is missing, nothing is printed at all.
+     * When it is present, the character count is announced and the contents are printed only
+     * if the user answers Y. Only reached on the no-PDF fallback path, so a paper that has a
+     * PDF never prints its full text to the terminal.
+     *
+     * @param id the paper ID entered by the user
+     */
+    private void offerFullTextView(String id) {
+        File fullTextFile = findResearchPaperFile(id, "_fulltext.txt");
+
+        if (fullTextFile == null) {
+            // No full text companion file for this paper - keep Option 9 output unchanged.
+            return;
+        }
+
+        String content;
+        try {
+            content = readFileUtf8(fullTextFile);
+        } catch (IOException e) {
+            System.out.println("[Notice] Full text file found but could not be read: " + e.getMessage());
+            return;
+        }
+
+        System.out.println("Full text available (" + content.length() + " characters) \u2014 view? [Y/N]");
+        String answer = readLine("> ");
+        if (answer == null) {
+            return;
+        }
+        answer = answer.trim();
+        if (!answer.equalsIgnoreCase("y") && !answer.equalsIgnoreCase("yes")) {
+            return;
+        }
+
+        System.out.println("============================= FULL TEXT: " + id + " =============================");
+        System.out.println(content);
+        System.out.println("========================================================================");
+    }
+
+    /**
+     * Reads a text file fully as UTF-8, preserving the exact character sequence of the file
+     * (line terminators are normalised to the platform separator).
+     */
+    private String readFileUtf8(File file) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        BufferedReader fileReader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8));
+        try {
+            String line;
+            boolean firstLine = true;
+            while ((line = fileReader.readLine()) != null) {
+                if (!firstLine) {
+                    sb.append(System.lineSeparator());
+                }
+                sb.append(line);
+                firstLine = false;
+            }
+        } finally {
+            fileReader.close();
+        }
+        return sb.toString();
     }
 
     // -------------------------------------------------------------------------
-    // Option 10: Exit
+    // Option 10: Narrate Citation Chain (Shortest Path)
+    // -------------------------------------------------------------------------
+    private void handleNarrateCitationChain() {
+        System.out.println("\n--- Narrate Citation Chain (Shortest Path) ---");
+        try {
+            if (graph.vertexCount() < 2) {
+                System.out.println("[Notice] Need at least 2 papers in the graph to find a citation chain.");
+                return;
+            }
+
+            String startId;
+            while (true) {
+                startId = readLine("Enter START paper ID (e.g. P101): ");
+                if (startId == null) return;
+                startId = startId.trim();
+                if (startId.isEmpty()) {
+                    System.out.println("[Error] Start paper ID cannot be empty.");
+                    continue;
+                }
+                if (graph.findIndexById(startId) == -1) {
+                    System.out.println("[Error] Paper ID '" + startId + "' not found. Available IDs:");
+                    printAvailablePaperIds();
+                    continue;
+                }
+                break;
+            }
+
+            String endId;
+            while (true) {
+                endId = readLine("Enter END paper ID (e.g. P106): ");
+                if (endId == null) return;
+                endId = endId.trim();
+                if (endId.isEmpty()) {
+                    System.out.println("[Error] End paper ID cannot be empty.");
+                    continue;
+                }
+                if (graph.findIndexById(endId) == -1) {
+                    System.out.println("[Error] Paper ID '" + endId + "' not found. Available IDs:");
+                    printAvailablePaperIds();
+                    continue;
+                }
+                break;
+            }
+
+            GraphTraversal traverser = new GraphTraversal(graph);
+            String chain = traverser.narrateChain(startId, endId);
+            int hops = traverser.getChainLength();
+
+            System.out.println("\n======================= CITATION CHAIN NARRATION =======================");
+            System.out.println("From: [" + startId + "] -> To: [" + endId + "]");
+            System.out.println("Hop Count: " + (hops == -1 ? "Unreachable" : hops));
+            System.out.println("Narration: " + chain);
+            System.out.println("========================================================================");
+        } catch (Exception e) {
+            System.out.println("[Error] An error occurred while narrating chain: " + e.getMessage());
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Option 11: Display All Paths (Hamiltonian Check)
+    // -------------------------------------------------------------------------
+    private void handleDisplayAllPaths() {
+        System.out.println("\n--- Display All Paths (Hamiltonian Check) ---");
+        try {
+            if (graph.vertexCount() < 2) {
+                System.out.println("[Notice] Need at least 2 papers in the graph to find paths.");
+                return;
+            }
+
+            String sourceId;
+            int sourceIdx;
+            while (true) {
+                sourceId = readLine("Enter SOURCE paper ID: ");
+                if (sourceId == null) return;
+                sourceId = sourceId.trim();
+                sourceIdx = graph.findIndexById(sourceId);
+                if (sourceIdx == -1) {
+                    System.out.println("[Error] Paper ID '" + sourceId + "' not found. Available IDs:");
+                    printAvailablePaperIds();
+                    continue;
+                }
+                break;
+            }
+
+            String targetId;
+            int targetIdx;
+            while (true) {
+                targetId = readLine("Enter TARGET paper ID: ");
+                if (targetId == null) return;
+                targetId = targetId.trim();
+                targetIdx = graph.findIndexById(targetId);
+                if (targetIdx == -1) {
+                    System.out.println("[Error] Paper ID '" + targetId + "' not found. Available IDs:");
+                    printAvailablePaperIds();
+                    continue;
+                }
+                break;
+            }
+
+            if (sourceIdx == targetIdx) {
+                System.out.println("[Notice] Source and target are the same paper (" + sourceId + "). No paths to enumerate.");
+                return;
+            }
+
+            GraphTraversal traverser = new GraphTraversal();
+            DynamicArray<DynamicArray<String>> allPaths = traverser.findAllPaths(graph, sourceId, targetId);
+
+            if (allPaths.isEmpty()) {
+                System.out.println("[Result] No directed paths found from [" + sourceId + "] to [" + targetId + "].");
+                return;
+            }
+
+            int totalNodes = graph.vertexCount();
+            System.out.println("\n===================== ALL PATHS: [" + sourceId + "] -> [" + targetId + "] =====================");
+            System.out.println("Total paths found: " + allPaths.size());
+            System.out.println("------------------------------------------------------------------------");
+
+            for (int p = 0; p < allPaths.size(); p++) {
+                DynamicArray<String> path = allPaths.get(p);
+                StringBuilder sb = new StringBuilder();
+                for (int k = 0; k < path.size(); k++) {
+                    if (k > 0) sb.append(" -> ");
+                    sb.append(path.get(k));
+                }
+
+                boolean hamiltonian = GraphTraversal.isHamiltonianPath(path, totalNodes);
+                System.out.printf("  Path %d (hops=%d): %s %s%n",
+                        (p + 1), path.size() - 1, sb.toString(),
+                        hamiltonian ? "[HAMILTONIAN]" : "");
+            }
+            System.out.println("========================================================================");
+        } catch (Exception e) {
+            System.out.println("[Error] An unexpected error occurred during path enumeration: " + e.getMessage());
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Option 12: Exit
     // -------------------------------------------------------------------------
     private boolean handleExit() {
         if (unsavedChanges) {

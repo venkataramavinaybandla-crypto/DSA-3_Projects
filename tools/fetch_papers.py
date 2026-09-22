@@ -20,6 +20,7 @@ import sys
 import time
 import urllib.request
 import xml.etree.ElementTree as ET
+import pdfplumber
 
 SSL_CTX = ssl._create_unverified_context()
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -82,7 +83,9 @@ PAPERS = [
     ("P536", "FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness", "2205.14135"),
     ("P537", "Direct Preference Optimization: Your Language Model is Secretly a Reward Model (DPO)", "2305.18290"),
     ("P538", "Deep Double Descent: Where Bigger Models and More Data Hurt", "1912.02292"),
-    ("P539", "Language Models are Unsupervised Multitask Learners (GPT-2)", "2005.14165"),
+    # GPT-2 is an OpenAI technical report (2019), not an arXiv preprint: no arXiv ID on purpose.
+    # It must never reuse GPT-3's ID (2005.14165) - doing so downloaded GPT-3 twice.
+    ("P539", "Language Models are Unsupervised Multitask Learners (GPT-2)", None),
     ("P540", "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks (RAG)", "2005.11401"),
     ("P541", "Learning Transferable Visual Models From Natural Language Supervision (CLIP)", "2103.00020"),
     ("P542", "Swin Transformer: Hierarchical Vision Transformer using Shifted Windows", "2103.14030"),
@@ -211,68 +214,163 @@ def fetch_arxiv_metadata(arxiv_id):
                 return None
     return None
 
-def download_arxiv_pdf(arxiv_id, target_path):
-    """Downloads real PDF file from arXiv and validates PDF header."""
-    # Check if a valid PDF already exists locally
-    if os.path.exists(target_path) and os.path.getsize(target_path) > 10000:
-        try:
-            with open(target_path, "rb") as f:
-                header = f.read(5)
-                if header.startswith(b"%PDF-"):
-                    return True
-        except Exception:
-            pass
+_LAST_REQUEST_TIME = 0.0
 
+def _rate_limit():
+    global _LAST_REQUEST_TIME
+    elapsed = time.time() - _LAST_REQUEST_TIME
+    if elapsed < 3.0:
+        time.sleep(3.0 - elapsed)
+    _LAST_REQUEST_TIME = time.time()
+
+def download_pdf(arxiv_id, dest_path):
+    """
+    Fetches https://arxiv.org/pdf/<arxiv_id>.pdf and saves to dest_path.
+    Validates the file starts with the %PDF- magic bytes before accepting it.
+    If invalid, retry once, then skip and log.
+    Rate-limit to 1 request per 3 seconds.
+    """
     pdf_url = f"{ARXIV_PDF_BASE}/{arxiv_id}.pdf"
     req = urllib.request.Request(pdf_url, headers={'User-Agent': USER_AGENT})
 
+    parent_dir = os.path.dirname(dest_path)
+    if parent_dir:
+        os.makedirs(parent_dir, exist_ok=True)
+
     for attempt in range(2):
+        _rate_limit()
         try:
             with urllib.request.urlopen(req, context=SSL_CTX, timeout=30) as resp:
                 data = resp.read()
 
-            if len(data) > 10000 and data[:5].startswith(b"%PDF-"):
-                with open(target_path, "wb") as f:
+            if data.startswith(b"%PDF-"):
+                with open(dest_path, "wb") as f:
                     f.write(data)
                 return True
             else:
-                # Retry once if truncated or rate limited
-                time.sleep(3)
+                if attempt == 0:
+                    print(f"    [!] Invalid magic bytes for arXiv ID {arxiv_id}, retrying once...", flush=True)
+                else:
+                    print(f"    [!] Invalid magic bytes for arXiv ID {arxiv_id} after retry, skipped and logged.", flush=True)
         except Exception as e:
-            time.sleep(3)
+            if attempt == 0:
+                print(f"    [!] Download attempt 1 failed for arXiv ID {arxiv_id} ({e}), retrying once...", flush=True)
+            else:
+                print(f"    [!] Download attempt 2 failed for arXiv ID {arxiv_id} ({e}), skipped and logged.", flush=True)
 
     return False
 
-def main():
+def download_arxiv_pdf(arxiv_id, target_path):
+    """Compatibility wrapper around download_pdf."""
+    return download_pdf(arxiv_id, target_path)
+
+def extract_full_text(pdf_path):
+    """
+    Extracts full text from all pages of the given PDF using pdfplumber.
+    Returns the extracted text as a string.
+    """
+    if not os.path.exists(pdf_path):
+        return ""
+    full_text_chunks = []
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    full_text_chunks.append(page_text)
+        return "\n\n".join(full_text_chunks)
+    except Exception as e:
+        print(f"Error extracting text from {pdf_path}: {e}", file=sys.stderr)
+        return ""
+
+def get_all_75_paper_ids(base_dir="."):
+    """Returns the ordered list of all 75 paper IDs."""
+    citation_csv = os.path.join(base_dir, "citation_data.csv")
+    if os.path.exists(citation_csv):
+        ids = []
+        with open(citation_csv, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line == "# CITATIONS":
+                    break
+                if line.startswith("#") or line.startswith("id,") or not line:
+                    continue
+                parts = line.split(",")
+                if parts:
+                    ids.append(parts[0].strip())
+        if len(ids) == 75:
+            return ids
+
+    papers_dir = os.path.join(base_dir, "research_papers")
+    if os.path.exists(papers_dir):
+        files = [
+            f[:-4] for f in os.listdir(papers_dir)
+            if f.endswith(".txt") and not f.endswith("_fulltext.txt") and re.match(r"^P\d+$", f[:-4])
+        ]
+        files.sort(key=lambda x: (int(re.search(r"\d+", x).group()), x))
+        if len(files) == 75:
+            return files
+
+    return (
+        [f"P1{i:02d}" for i in range(1, 16)] +
+        [f"P2{i:02d}" for i in range(1, 11)] +
+        [f"P3{i:02d}" for i in range(1, 7)] +
+        [f"P4{i:02d}" for i in range(1, 5)] +
+        [f"P5{i:02d}" for i in range(1, 41)]
+    )
+
+def extract_all_papers_fulltext(base_dir="."):
+    """
+    For each of the 75 papers:
+    - If research_papers/<id>.pdf exists, extracts full text to research_papers/<id>_fulltext.txt.
+    - Skips if fulltext file already exists.
+    - Does not touch abstract .txt files or re-download PDFs.
+    - Prints a summary table: id | pdf found | fulltext extracted | char count.
+    """
+    papers_dir = os.path.join(base_dir, "research_papers")
+    paper_ids = get_all_75_paper_ids(base_dir)
+
+    results = []
+    for pid in paper_ids:
+        pdf_path = os.path.join(papers_dir, f"{pid}.pdf")
+        fulltext_path = os.path.join(papers_dir, f"{pid}_fulltext.txt")
+
+        pdf_found = os.path.exists(pdf_path)
+
+        if os.path.exists(fulltext_path):
+            fulltext_extracted = "Skipped"
+            with open(fulltext_path, "r", encoding="utf-8") as f:
+                char_count = len(f.read())
+        elif pdf_found:
+            text = extract_full_text(pdf_path)
+            with open(fulltext_path, "w", encoding="utf-8") as f:
+                f.write(text)
+            fulltext_extracted = "Yes"
+            char_count = len(text)
+        else:
+            fulltext_extracted = "No"
+            char_count = 0
+
+        results.append({
+            "id": pid,
+            "pdf_found": "Yes" if pdf_found else "No",
+            "fulltext_extracted": fulltext_extracted,
+            "char_count": char_count
+        })
+
+    print(f"| {'id':<6} | {'pdf found':<10} | {'fulltext extracted':<18} | {'char count':<10} |")
+    print(f"|:{'-'*6}|:{'-'*10}|:{'-'*18}|:{'-'*10}|")
+    for r in results:
+        print(f"| {r['id']:<6} | {r['pdf_found']:<10} | {r['fulltext_extracted']:<18} | {r['char_count']:<10} |")
+
+    return results
+
+def download_arxiv_papers(base_dir="."):
     print("[*] Starting arXiv Real PDF Ingestion for Citation Analysis System...")
     sys.stdout.flush()
 
-    dest_dir = "research_papers"
+    dest_dir = os.path.join(base_dir, "research_papers")
     os.makedirs(dest_dir, exist_ok=True)
-
-    # Clean up all existing .txt files from prior runs in research_papers/
-    txt_removed = 0
-    for fname in os.listdir(dest_dir):
-        if fname.endswith(".txt"):
-            try:
-                os.remove(os.path.join(dest_dir, fname))
-                txt_removed += 1
-            except Exception:
-                pass
-    if txt_removed > 0:
-        print(f"[+] Removed {txt_removed} legacy .txt files from {dest_dir}/ (PDFs only now).")
-
-    # Move any non-pdf auxiliary files out of research_papers/ if present
-    # so that file count in research_papers/ strictly reflects the PDF count
-    auxiliary_files = ["papers_database.csv", "LITERATURE_SURVEY.md", "fetch_arxiv_papers.py"]
-    for aux in auxiliary_files:
-        p = os.path.join(dest_dir, aux)
-        if os.path.exists(p):
-            try:
-                # Remove auxiliary copies inside research_papers
-                os.remove(p)
-            except Exception:
-                pass
 
     downloaded_papers = []
     failed_papers = []
@@ -281,6 +379,11 @@ def main():
     sys.stdout.flush()
 
     for idx, (pid, default_title, arxiv_id) in enumerate(PAPERS, 1):
+        if not arxiv_id:
+            print(f"[{idx:02d}/{len(PAPERS)}] {pid}: no arXiv ID, skipped ('{default_title}')")
+            sys.stdout.flush()
+            continue
+
         pdf_filename = f"{pid}.pdf"
         pdf_path = os.path.join(dest_dir, pdf_filename)
 
@@ -367,6 +470,97 @@ def main():
     print(f"Total citation edges recorded: {len(valid_citations)}")
     print(f"Failed downloads: {len(failed_papers)}")
     print("=" * 60)
+
+def run_download_all_papers(base_dir="."):
+    """
+    Runs PDF download for all 75 IDs in papers.csv.
+    Skips the 22 non-arXiv seminal papers with log: 'no arXiv ID, skipped'.
+    Prints a summary table: id | download success (Y/N) | file size (KB).
+    Stops after the table.
+    """
+    dest_dir = os.path.join(base_dir, "research_papers")
+    os.makedirs(dest_dir, exist_ok=True)
+
+    csv_candidates = [
+        os.path.join(base_dir, "papers.csv"),
+        "papers.csv",
+        os.path.join(os.path.dirname(__file__), "..", "papers.csv"),
+        os.path.join(base_dir, "citation_data.csv"),
+        "citation_data.csv",
+    ]
+    csv_path = None
+    for c in csv_candidates:
+        if os.path.exists(c):
+            csv_path = c
+            break
+
+    if not csv_path:
+        print("[!] Error: papers.csv not found!", file=sys.stderr)
+        return
+
+    paper_ids = []
+    with open(csv_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line == "# CITATIONS":
+                break
+            if not line or line.startswith("#") or line.startswith("id,"):
+                continue
+            pid = line.split(",")[0].strip()
+            if pid:
+                paper_ids.append(pid)
+
+    arxiv_map = {p[0]: p[2] for p in PAPERS}
+    non_arxiv_set = {
+        "P105", "P106", "P107", "P110",
+        "P201", "P202", "P204", "P205", "P206", "P207", "P209", "P210",
+        "P301", "P302", "P303", "P304", "P305", "P306",
+        "P401", "P402", "P403", "P404",
+        "P539"  # GPT-2: OpenAI technical report, no arXiv preprint exists
+    }
+
+    results = []
+
+    for pid in paper_ids:
+        if pid in non_arxiv_set or pid not in arxiv_map:
+            print(f"{pid}: no arXiv ID, skipped", flush=True)
+            results.append({"id": pid, "success": "N", "size_kb": 0})
+            continue
+
+        arxiv_id = arxiv_map[pid]
+        if not arxiv_id:
+            # Defensive: a PAPERS entry with no arXiv ID must never be fetched.
+            print(f"{pid}: no arXiv ID, skipped", flush=True)
+            results.append({"id": pid, "success": "N", "size_kb": 0})
+            continue
+
+        dest_path = os.path.join(dest_dir, f"{pid}.pdf")
+        print(f"[{pid}] Fetching https://arxiv.org/pdf/{arxiv_id}.pdf -> {dest_path}...", flush=True)
+        success = download_pdf(arxiv_id, dest_path)
+        if success and os.path.exists(dest_path):
+            size_kb = os.path.getsize(dest_path) // 1024
+            print(f"    [+] Saved {pid}.pdf ({size_kb} KB)", flush=True)
+            results.append({"id": pid, "success": "Y", "size_kb": size_kb})
+        else:
+            print(f"    [!] Failed to download {pid}.pdf", flush=True)
+            results.append({"id": pid, "success": "N", "size_kb": 0})
+
+    # Summary table
+    print()
+    print(f"| {'id':<6} | {'download success (Y/N)':<22} | {'file size (KB)':<14} |")
+    print(f"|:{'-'*6}|:{'-'*22}|:{'-'*14}|")
+    for r in results:
+        print(f"| {r['id']:<6} | {r['success']:<22} | {r['size_kb']:<14} |")
+    sys.stdout.flush()
+
+def main():
+    base_dir = "." if os.path.exists("research_papers") else (".." if os.path.exists("../research_papers") else ".")
+    if len(sys.argv) > 1 and sys.argv[1] == "--download":
+        run_download_all_papers(base_dir)
+    elif len(sys.argv) > 1 and sys.argv[1] == "--ingest":
+        download_arxiv_papers(base_dir)
+    else:
+        extract_all_papers_fulltext(base_dir)
 
 if __name__ == "__main__":
     main()
