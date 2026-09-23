@@ -8,6 +8,7 @@ import core.DynamicArray;
 import core.Graph;
 import core.Paper;
 import io.CsvHandler;
+import report.GraphRenderer;
 import report.ReportGenerator;
 
 import java.io.BufferedReader;
@@ -918,6 +919,9 @@ public class Main {
             int totalNodes = graph.vertexCount();
             System.out.println("\n===================== ALL PATHS: [" + sourceId + "] -> [" + targetId + "] =====================");
             System.out.println("Total paths found: " + allPaths.size());
+            System.out.println("------------------------------------------------------------------------");
+            System.out.println("Citation path diagram:");
+            System.out.print(GraphRenderer.render(allPaths));
             System.out.println("------------------------------------------------------------------------");
 
             for (int p = 0; p < allPaths.size(); p++) {
