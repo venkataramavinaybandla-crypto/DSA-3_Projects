@@ -190,3 +190,15 @@ Phase 0 → Phase 1 → Phase 2 ─┬─→ Phase 5 (needs Phase 2's BFS)
 - Phase 4 must wait for Phase 3; Phase 5 must wait for Phase 2
 - Phase 9 is the big convergence point — don't dispatch it until 2, 3, 4, 5, 6, 7, and 8 are all done and tested
 - Phase 10 must NOT start until Phase 9's API contract (the endpoint list above) is finalized — this is the single most important sequencing rule for the whole web layer, since a frontend built against a shifting API is the most expensive kind of rework in this entire plan
+
+---
+
+## CO-3: Dynamic Programming — Optimal Citation Path (Held-Karp Bitmask DP)
+
+- **Method signature:** `public GraphTraversal.OptimalPathResult optimalCitationPath(List<String> paperIds)` in `src/algo/GraphTraversal.java`, plus a `DynamicArray<String>` overload and an explicit `(Graph, List<String>)` overload so the console layer can call it without `java.util` collection types.
+- **Menu option:** `12. Optimal Citation Path (Bitmask DP)` in `Main` (Exit renumbered to `13`). Prompts for a comma-separated list of paper IDs and prints the resulting route with its total cost.
+- **Problem:** Given a subset of paper IDs, find the minimum-cost directed citation path that visits all of them while respecting the existing directed citation edges in the graph.
+- **Approach:** Pairwise shortest-hop distances between the requested papers are computed once per source with a level-order sweep over the full graph; a Held-Karp `dp[mask][lastNode]` bitmask table then chooses the cheapest visiting order, and the concrete sub-routes are stitched back into one explicit paper route.
+- **Hard cap:** 20 papers. A subset larger than that throws a clear `IllegalArgumentException`. When no directed route can connect the whole subset, the method returns the canonical message `"No valid path exists for this subset"` instead of throwing or crashing.
+- **Complexity:** `O(2^n * n^2)` time for the bitmask DP, where `n` is the number of requested papers (`n <= 20`); `O(2^n * n)` extra space for the `dp` table, plus `O(n * (V + E))` for the per-source shortest hop distances.
+- **Tests:** Two new cases in `src/algo/GraphTest.java` — a 4-paper subset with a known, verifiable optimal route and cost (routed through an intermediate paper), and a subset with no valid connecting path asserting the canonical no-path message rather than a crash.

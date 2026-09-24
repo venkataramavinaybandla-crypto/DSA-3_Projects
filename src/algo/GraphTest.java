@@ -25,6 +25,8 @@ public class GraphTest {
         testNarrateChain3Hop();
         testFindAllPathsAndHamiltonian();
         testFixtureAB_AC_BD();
+        testOptimalCitationPathValid();
+        testOptimalCitationPathNoValidPath();
 
         System.out.println("\n==========================================");
         System.out.println("GRAPH TEST RESULTS: " + passedTests + " / " + totalTests + " PASSED");
@@ -388,6 +390,69 @@ public class GraphTest {
                 "Paper A refers to Paper B & Paper B refers to Paper D, so Paper A refers to Paper D.", narration);
         assertEquals("getChainLength matches 2", 2, chainLength);
         assertEquals("findAllPaths count is 1", 1, paths.size());
+    }
+
+    // ------------------------------------------------ optimalCitationPath (valid)
+    private static void testOptimalCitationPathValid() {
+        System.out.println("\n--- optimalCitationPath (Valid 4-Node Subset) ---");
+        // Directed routes: A -> X -> B -> C -> D.
+        // Only A can reach the rest, so the unique minimum-cost route over {A,B,C,D}
+        // is A -> X -> B -> C -> D: 4 hops, with X acting as an intermediate paper.
+        Graph graph = new Graph();
+        graph.addVertex(new Paper("A", "Paper A", "Author A", 2020));
+        graph.addVertex(new Paper("B", "Paper B", "Author B", 2021));
+        graph.addVertex(new Paper("C", "Paper C", "Author C", 2022));
+        graph.addVertex(new Paper("D", "Paper D", "Author D", 2023));
+        graph.addVertex(new Paper("X", "Paper X", "Author X", 2024));
+
+        graph.addCitation("A", "X");
+        graph.addCitation("X", "B");
+        graph.addCitation("B", "C");
+        graph.addCitation("C", "D");
+
+        java.util.List<String> subset = new java.util.ArrayList<>();
+        subset.add("A");
+        subset.add("B");
+        subset.add("C");
+        subset.add("D");
+
+        GraphTraversal traverser = new GraphTraversal(graph);
+        GraphTraversal.OptimalPathResult result = traverser.optimalCitationPath(subset);
+
+        assertTrue("optimalCitationPath finds a valid route for the 4-node subset", result.isFound());
+        assertEquals("optimalCitationPath total cost is 4 hops", 4, result.getCost());
+        assertEquals("optimalCitationPath route length is 5 papers (X used as intermediate)",
+                5, result.getPath().size());
+        assertEquals("optimalCitationPath route[0] == A", "A", result.getPath().get(0));
+        assertEquals("optimalCitationPath route[1] == X", "X", result.getPath().get(1));
+        assertEquals("optimalCitationPath route[2] == B", "B", result.getPath().get(2));
+        assertEquals("optimalCitationPath route[3] == C", "C", result.getPath().get(3));
+        assertEquals("optimalCitationPath route[4] == D", "D", result.getPath().get(4));
+    }
+
+    // --------------------------------------- optimalCitationPath (no valid path)
+    private static void testOptimalCitationPathNoValidPath() {
+        System.out.println("\n--- optimalCitationPath (No Valid Path) ---");
+        // A -> B is the only edge; C is isolated, so no directed route can visit A, B and C.
+        Graph graph = new Graph();
+        graph.addVertex(new Paper("A", "Paper A", "Author A", 2020));
+        graph.addVertex(new Paper("B", "Paper B", "Author B", 2021));
+        graph.addVertex(new Paper("C", "Paper C", "Author C", 2022));
+        graph.addCitation("A", "B");
+
+        java.util.List<String> subset = new java.util.ArrayList<>();
+        subset.add("A");
+        subset.add("B");
+        subset.add("C");
+
+        GraphTraversal traverser = new GraphTraversal(graph);
+        GraphTraversal.OptimalPathResult result = traverser.optimalCitationPath(subset);
+
+        assertTrue("optimalCitationPath reports not found instead of crashing", !result.isFound());
+        assertEquals("optimalCitationPath no-path message is returned",
+                GraphTraversal.NO_VALID_PATH_MESSAGE, result.getMessage());
+        assertEquals("optimalCitationPath no-path toString is the message",
+                GraphTraversal.NO_VALID_PATH_MESSAGE, result.toString());
     }
 }
 

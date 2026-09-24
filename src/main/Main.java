@@ -88,7 +88,7 @@ public class Main {
         boolean running = true;
         while (running) {
             printMainMenu();
-            String choice = readLine("Enter your choice (1-12): ");
+            String choice = readLine("Enter your choice (1-13): ");
             if (choice == null) {
                 // End of input stream (e.g. piped input or EOF)
                 System.out.println("\nInput stream closed. Exiting.");
@@ -97,7 +97,7 @@ public class Main {
 
             choice = choice.trim();
             if (choice.isEmpty()) {
-                System.out.println("Please enter a selection from 1 to 12.");
+                System.out.println("Please enter a selection from 1 to 13.");
                 continue;
             }
 
@@ -140,10 +140,13 @@ public class Main {
                     }
                     break;
                 case "12":
+                    handleOptimalCitationPath();
+                    break;
+                case "13":
                     running = handleExit();
                     break;
                 default:
-                    System.out.println("[Error] Invalid choice: '" + choice + "'. Please enter a number between 1 and 12.");
+                    System.out.println("[Error] Invalid choice: '" + choice + "'. Please enter a number between 1 and 13.");
             }
         }
     }
@@ -169,7 +172,8 @@ public class Main {
         System.out.println("  9. View paper content");
         System.out.println(" 10. Narrate citation chain (Shortest Path)");
         System.out.println(" 11. Display All Paths (Hamiltonian Check)");
-        System.out.println(" 12. Exit");
+        System.out.println(" 12. Optimal Citation Path (Bitmask DP)");
+        System.out.println(" 13. Exit");
         System.out.println("------------------------------------------------------------------------");
     }
 
@@ -944,7 +948,57 @@ public class Main {
     }
 
     // -------------------------------------------------------------------------
-    // Option 12: Exit
+    // Option 12: Optimal Citation Path (Bitmask DP)
+    // -------------------------------------------------------------------------
+    private void handleOptimalCitationPath() {
+        System.out.println("\n--- Optimal Citation Path (Bitmask DP) ---");
+        if (graph.vertexCount() == 0) {
+            System.out.println("[Notice] Graph is empty. No papers to visit.");
+            return;
+        }
+
+        String input = readLine("Enter comma-separated paper IDs (e.g. P101,P102,P104): ");
+        if (input == null) return;
+        input = input.trim();
+        if (input.isEmpty()) {
+            System.out.println("[Error] Paper ID list cannot be empty.");
+            return;
+        }
+
+        DynamicArray<String> paperIds = new DynamicArray<>();
+        String[] parts = input.split(",");
+        for (String part : parts) {
+            String id = part.trim();
+            if (!id.isEmpty()) {
+                paperIds.add(id);
+            }
+        }
+
+        if (paperIds.isEmpty()) {
+            System.out.println("[Error] No valid paper IDs were provided.");
+            return;
+        }
+
+        try {
+            GraphTraversal traverser = new GraphTraversal(graph);
+            GraphTraversal.OptimalPathResult result = traverser.optimalCitationPath(paperIds);
+
+            System.out.println("\n=================== OPTIMAL CITATION PATH ===================");
+            System.out.println("Papers requested : " + paperIds.size());
+            if (result.isFound()) {
+                System.out.println("Path             : " + result);
+                System.out.println("Total cost       : " + result.getCost());
+            } else {
+                System.out.println("Result           : " + result.getMessage());
+            }
+            System.out.println("=============================================================");
+        } catch (IllegalArgumentException e) {
+            System.out.println("[Error] " + e.getMessage());
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Option 13: Exit
     // -------------------------------------------------------------------------
     private boolean handleExit() {
         if (unsavedChanges) {
